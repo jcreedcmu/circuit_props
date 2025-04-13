@@ -64,10 +64,21 @@ instance : Indexed Xprop where
   Const x := λ _ _ => Const x
   Forall k := λ s g => Forall (λ u => k u s g)
 
+def for_some_timing (A : Xprop) : Tprop := 
+  λ t => ∃ s g, A s g t
 
-def nand_ts : Xprop := 
-   (x low ⊸ z high) ⊗
-   (y low ⊸ z high) ⊗ 
-   ((x high ⊗ y high) ⊸ z low)
+notation "◇" => for_some_timing
+
+def nand_ts : Tprop := 
+   ◇ (x low ⊸ z high) ⊗
+   ◇ (y low ⊸ z high) ⊗ 
+   ◇ ((x high ⊗ y high) ⊸ z low)
+
+theorem foo (A B C D : Tprop) (t : ℝ) : (◇ (A ⊸ B) ⊗ ◇ (C ⊸ D)) t → ◇ ((A ⊸ B) ⊗ (C ⊸ D)) t :=  by
+  intro h1 
+  delta for_some_timing
+  obtain ⟨⟨ s , g, w⟩ , ⟨s', g', w'⟩⟩ := h1
+  delta Indexed.Impl at w; whnf at w; delta interval at w;
+  sorry
 
 end use_indexed

@@ -76,16 +76,15 @@ instance : Indexed Xprop where
   Forall k := λ s g => Forall (λ u => k u s g)
 
 def for_some_timing (A : Xprop) : Prop := 
-   ∃ s g, ∀ t, A s g t
+   ∃ sg : ℝ × ℝ, ∀ t, A sg.1 sg.2 t
 
 notation "◇" => for_some_timing
 
 theorem dia_distrib {A B C D : Tprop} : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) ↔ ◇ ((A ⊸ B) ⊗ (C ⊸ D)) := 
   have undistribute_dia  : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) → ◇ ((A ⊸ B) ⊗ (C ⊸ D)) := by
     intro h1 
-    let ⟨⟨s, g, w⟩ , ⟨s', g', w'⟩⟩ := h1
-    use (max s s')
-    use (min g g')
+    let ⟨⟨⟨s, g⟩, w⟩ , ⟨⟨s', g'⟩, w'⟩⟩ := h1
+    use ⟨max s s', min g g'⟩
     intro t
     constructor
     · intro get_a; apply w;  intro u' ⟨h1, h2⟩; 
@@ -99,22 +98,41 @@ theorem dia_distrib {A B C D : Tprop} : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) ↔ ◇ 
 
   have distribute_dia : ◇ ((A ⊸ B) ⊗ (C ⊸ D)) → ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) :=  by
     intro h1
-    let ⟨ s , g , w ⟩ := h1
+    let ⟨sg , w⟩ := h1
     constructor
-    · use s; use g; intro t; exact (w t).1
-    · use s; use g; intro t; exact (w t).2
+    · use sg; intro t; exact (w t).1
+    · use sg; intro t; exact (w t).2
 
   Iff.intro undistribute_dia distribute_dia 
 
+def implies_at_spec (sg : ℝ × ℝ) (A B : Tprop) : Tprop := 
+  (□ (-sg.1) (-sg.2) (A)) ⊸ B
+
+notation A " ⊸[" sg "] " B => implies_at_spec sg A B
+def U (A : Tprop) : Prop := 
+ ∀ t, A t
+
 structure Nand : Prop where
-   nand1low : ◇ (x low ⊸ z high) 
-   nand2low : ◇ (y low ⊸ z high) 
-   nandBothHigh : ◇ ((x high ⊗ y high) ⊸ z low)
+   nand1low : ∃ sg, U (x low ⊸[sg] z high)
+   nand2low : ∃ sg, U (y low ⊸[sg] z high) 
+   nandBothHigh : ∃ sg, U ((x high ⊗ y high) ⊸[sg] z low)
+
+theorem lol_curry (A B C : Tprop) (sg : ℝ × ℝ) : ((A ⊗ B) ⊸[sg] C) t → (A ⊸[sg] B ⊸[sg] C) t := by
+    intros h ha hb
+    apply h
+    intros u hle
+    constructor
+    · exact ha u hle
+    · exact hb u hle
 
 structure Latch (s r q qbar : Location) : Prop where
  qside : Nand s qbar q 
  qbarside : Nand r q qbar
 
+
+def dia_functor {A B : Xprop} (f : (sg : ℝ × ℝ) → (t : ℝ) → A sg.1 sg.2 t → B sg.1 sg.2 t) (arg : ◇ A) : ◇ B := 
+   let ⟨sg', w⟩ := arg
+   ⟨sg', λ t => f sg' t (w t)⟩ 
 
 def latch_set_q {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (s low ⊸ q high) :=
  L.qside.nand1low
@@ -125,6 +143,8 @@ def latch_set_qbar {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (r high 
   constructor
   · exact latch_set_q L
   · exact L.qbarside.nandBothHigh
+ apply dia_functor (arg := y)
+ intros h h1 h2 h3
  sorry
 
 def latch_reset_qbar {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (r low ⊸ qbar high) :=

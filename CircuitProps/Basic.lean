@@ -64,13 +64,13 @@ instance : Coe Tprop Xprop where
   coe x := λ _ _ => x
 
 def interval (a b : ℝ) (X : Tprop): Tprop := 
-   λ t => ∀ u, (a ≤ u ∧ u ≤ b) → X t
+   λ t => ∀ u, ((a + t ≤ u ∧ u ≤ b + t) → X u)
 
 notation "□" => interval
 
 instance : Indexed Xprop where
   And := λ A B => λ s g => A s g ⊗ B s g
-  Impl := λ A B => λ s g => □ (-s) (-g) (A s g) ⊸ (B s g)
+  Impl := λ A B => λ s g => (□ (-s) (-g) (A s g)) ⊸ (B s g)
   Delay := λ u A => λ s g => ○ u (A s g)
   Const x := λ _ _ => Const x
   Forall k := λ s g => Forall (λ u => k u s g)
@@ -80,16 +80,38 @@ def for_some_timing (A : Xprop) : Prop :=
 
 notation "◇" => for_some_timing
 
-def nand_ts : Prop := 
+def nand : Prop := 
    ◇ (x low ⊸ z high) ∧ 
    ◇ (y low ⊸ z high) ∧ 
    ◇ ((x high ⊗ y high) ⊸ z low)
 
-theorem foo (A B C D : Tprop) : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) → ◇ ((A ⊸ B) ⊗ (C ⊸ D)) :=  by
-  intro h1 
-  delta for_some_timing
-  obtain ⟨⟨ s , g, w⟩ , ⟨s', g', w'⟩⟩ := h1
-  
-  sorry
+theorem dia_distrib (A B C D : Tprop) : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) ↔ ◇ ((A ⊸ B) ⊗ (C ⊸ D)) := 
+  have undistribute_dia  : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) → ◇ ((A ⊸ B) ⊗ (C ⊸ D)) := by
+    intro h1 
+    let ⟨⟨s, g, w⟩ , ⟨s', g', w'⟩⟩ := h1
+    use (max s s')
+    use (min g g')
+    intro t
+    constructor
+    · intro get_a; apply w;  intro u' ⟨h1, h2⟩; 
+      apply get_a; constructor;  
+      · linarith [le_max_left s s']
+      · linarith [min_le_left g g']
+    · intro get_c; apply w'; intro u' ⟨h1, h2⟩;
+      apply get_c; constructor;
+      · linarith [le_max_right s s']
+      · linarith [min_le_right g g']
+
+  have distribute_dia : ◇ ((A ⊸ B) ⊗ (C ⊸ D)) → ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) :=  by
+    intro h1
+    let ⟨ s , g , w ⟩ := h1
+    constructor
+    · use s; use g; intro t; exact (w t).1
+    · use s; use g; intro t; exact (w t).2
+
+  Iff.intro undistribute_dia distribute_dia 
+
+def latch (s r q qbar : Location) : Prop :=
+ nand s qbar q ∧ nand r q qbar
 
 end use_indexed

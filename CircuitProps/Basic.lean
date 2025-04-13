@@ -55,7 +55,7 @@ open Indexed PreIndexed
 -- This notation doesn't have much to do with linear logic,
 -- I just wanted something to not conflict with ∧, →  
 infixr:35 " ⊗ " => And
-infixr:35 " ⊸ " => Impl
+infixr:30 " ⊸ " => Impl
 
 notation "○" => Delay
 notation "∀" u "," body => Forall (λ u => body)
@@ -80,12 +80,7 @@ def for_some_timing (A : Xprop) : Prop :=
 
 notation "◇" => for_some_timing
 
-def nand : Prop := 
-   ◇ (x low ⊸ z high) ∧ 
-   ◇ (y low ⊸ z high) ∧ 
-   ◇ ((x high ⊗ y high) ⊸ z low)
-
-theorem dia_distrib (A B C D : Tprop) : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) ↔ ◇ ((A ⊸ B) ⊗ (C ⊸ D)) := 
+theorem dia_distrib {A B C D : Tprop} : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) ↔ ◇ ((A ⊸ B) ⊗ (C ⊸ D)) := 
   have undistribute_dia  : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) → ◇ ((A ⊸ B) ⊗ (C ⊸ D)) := by
     intro h1 
     let ⟨⟨s, g, w⟩ , ⟨s', g', w'⟩⟩ := h1
@@ -111,7 +106,36 @@ theorem dia_distrib (A B C D : Tprop) : ◇ (A ⊸ B) ∧ ◇ (C ⊸ D) ↔ ◇ 
 
   Iff.intro undistribute_dia distribute_dia 
 
-def latch (s r q qbar : Location) : Prop :=
- nand s qbar q ∧ nand r q qbar
+structure Nand : Prop where
+   nand1low : ◇ (x low ⊸ z high) 
+   nand2low : ◇ (y low ⊸ z high) 
+   nandBothHigh : ◇ ((x high ⊗ y high) ⊸ z low)
+
+structure Latch (s r q qbar : Location) : Prop where
+ qside : Nand s qbar q 
+ qbarside : Nand r q qbar
+
+
+def latch_set_q {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (s low ⊸ q high) :=
+ L.qside.nand1low
+
+def latch_set_qbar {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (r high ⊗ s low ⊸ qbar low) := by
+ have y : ◇ ((s low ⊸ q high) ⊗ (r high ⊗ q high ⊸ qbar low)) := by 
+  apply dia_distrib.mp
+  constructor
+  · exact latch_set_q L
+  · exact L.qbarside.nandBothHigh
+ sorry
+
+def latch_reset_qbar {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (r low ⊸ qbar high) :=
+ L.qbarside.nand1low
+ 
+def latch_remain_q {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (q high ⊗ s high ⊗ r high ⊸ q high) := by
+ have y : ◇ ((s low ⊸ q high) ⊗ (r high ⊗ q high ⊸ qbar low)) := by 
+  apply dia_distrib.mp
+  constructor
+  · exact latch_set_q L
+  · exact L.qbarside.nandBothHigh
+ sorry
 
 end use_indexed

@@ -52,14 +52,12 @@ notation "∀" u "," body => Forall (λ u => body)
 instance : Coe Tprop Xprop where
   coe x := λ _ _ => x
 
-def interval (lim: ℝ) {A : Type} [Indexed A] (X : A): A := 
-   ∀ u, (Const (u ≤ lim ∧ u ≥ 0)) ⊸ ○ u X 
-
-notation "□" => interval
+def interval (a b : ℝ) (X : Tprop): Tprop := 
+   λ t => ∀ u, (a ≤ u ∧ u ≤ b) → X t
 
 instance : Indexed Xprop where
   And := λ A B => λ s g => A s g ⊗ B s g
-  Impl := λ A B => λ s g => □ s (A s g) ⊸ ○ (s + g) (B s g)
+  Impl := λ A B => λ s g => interval (-s-g) (-g) (A s g) ⊸ (B s g)
   Delay := λ u A => λ s g => ○ u (A s g)
   Const x := λ _ _ => Const x
   Forall k := λ s g => Forall (λ u => k u s g)

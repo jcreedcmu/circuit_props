@@ -31,9 +31,11 @@ infixr:30 " →'  "  => lifted_imp
 def with_delay (d1 d2 : ℝ) (A B : Tprop) : Tprop := 
     □ d1 A →' ○ (d1 + d2) B 
 
+notation A " ⇒ " "[" d1 "," d2 "]" B =>  with_delay d1 d2 A B
+
 def nand_ts (d1 d2 : ℝ) : Tprop := 
-   with_delay d1 d2 (x low) (z high) ∧'
-   with_delay d1 d2 (y low) (z high) ∧' 
-   with_delay d1 d2 (x high ∧' y high) (z low) 
+   (x low ⇒ [d1, d2] z high) ∧'
+   (y low ⇒ [d1, d2] z high) ∧'
+   ((x high ∧' y high) ⇒ [d1, d2] z low)
 
 

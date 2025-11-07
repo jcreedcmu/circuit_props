@@ -8,49 +8,56 @@ open Signal
 -- A Tprop is a proposition indexed by time
 def Tprop := (t : ℝ) → Prop
 
--- An Xprop is a proposition indexed by time,
--- and also gate timing characteristics:
--- s is "setup time"
--- g is "gap"
--- <-         s        ->
---             <-  g   ->
--- |----------|         |
--- -s         -g         0
--- If a gate's inputs are stable during [-s,-g],
--- then it promises to have an output value
--- at time 0.
-def Xprop := (s : ℝ) → (g: ℝ) → Tprop
-
-def Sgprop := (s : ℝ) → (g: ℝ) → Prop
-
+-- A location is a thing that may have a high signal and may have a
+-- low signal at various times.
 def Location := Signal → Tprop
 
-variable (x y z : Location) (t t1 t2 : ℝ)
+def Univ (A : Tprop) : Prop :=
+  ∀ t, A t
+prefix:30 "■" => Univ
 
-class PreIndexed (X : Type) where
-  And : X → X → X
-  Impl : X → X → X
-  Const : Prop → X
-  Forall : (ℝ → X) → X
+def Prev (p : ℝ) (A : Tprop) : Tprop :=
+  fun t => ∀ u ∈ Set.Icc 0 p, A (t - u)
+notation "□[" p "]" q:40 => Prev p q
 
-class Indexed (X : Type) extends PreIndexed X where
-  Delay : ℝ → X → X
+def Delay (p : ℝ) (A : Tprop) : Tprop :=
+  fun t => A (t - p)
+notation "○[" p "]" q:40 => Delay p q
 
-instance : Indexed Tprop where
-  And := fun A B => fun t => A t ∧ B t
-  Impl := fun A B => fun t => A t → B t
-  Delay := fun u A => fun t => A (t + u)
-  Const x := fun _ => x
-  Forall k := fun t => ∀ u, k u t
+def Andt (A B : Tprop) : Tprop := fun t => A t ∧ B t
+def Impt (A B : Tprop) : Tprop := fun t => A t → B t
 
-instance : PreIndexed Sgprop where
-  And := fun A B => fun s g => A s g ∧ B s g
-  Impl := fun A B => fun s g => A s g → B s g
-  Const x := fun _ _ => x
-  Forall k := fun s g => ∀ u, k u s g
+infixr:35 " ∧t " => Andt
+infixr:30 " →t " => Impt
 
+structure Nand (p q : ℝ) (in0 in1 out : Location) where
+  low0 : ■ (□[p] ○[q] (in0 low) →t out high)
+  low1 : ■ (□[p] ○[q] (in1 low) →t out high)
+  high01 : ■ (□[p] ○[q] (in0 high ∧t in1 high) →t out low)
+
+example (p q : ℝ) (in0 in1 out : Location) :
+    (□[p] ○[q] (in0 high ∧t in1 high) →t out low) =
+   ((□[p] (○[q] (in0 high ∧t in1 high))) →t out low) := by
+   rfl
+
+structure Latch (p q : ℝ) (s r qpos qbar : Location) : Prop where
+ nand_qpos : Nand p q s qbar qpos
+ nand_qbar : Nand p q r qpos qbar
+
+theorem nand_reset (p q : ℝ) (s r qpos qbar : Location)
+    (ℓ : Latch p q s r qpos qbar) :
+    ■ (□[2 * p + q] ○[q] (r low ∧t s high) →t (qpos low ∧t qbar high)) := by
+  intro t h
+  have hh : qbar high t := by
+    apply ℓ.nand_qbar.low0
+    sorry
+  constructor
+  · apply ℓ.nand_qpos.high01
+    sorry
+  · exact hh
+
+#exit
 section use_indexed
-open Indexed PreIndexed
 
 -- This notation doesn't have much to do with linear logic,
 -- I just wanted something to not conflict with ∧, →
@@ -58,6 +65,7 @@ infixr:35 " ⊗ " => And
 infixr:30 " ⊸ " => Impl
 
 notation "○" => Delay
+notation "□" => Prev
 notation "∀" u "," body => Forall (fun u => body)
 
 instance : Coe Tprop Xprop where

@@ -37,17 +37,17 @@ class Indexed (X : Type) extends PreIndexed X where
   Delay : ℝ → X → X
 
 instance : Indexed Tprop where
-  And := λ A B => λ t => A t ∧ B t
-  Impl := λ A B => λ t => A t → B t
-  Delay := λ u A => λ t => A (t + u)
-  Const x := λ _ => x
-  Forall k := λ t => ∀ u, k u t
+  And := fun A B => fun t => A t ∧ B t
+  Impl := fun A B => fun t => A t → B t
+  Delay := fun u A => fun t => A (t + u)
+  Const x := fun _ => x
+  Forall k := fun t => ∀ u, k u t
 
 instance : PreIndexed Sgprop where
-  And := λ A B => λ s g => A s g ∧ B s g
-  Impl := λ A B => λ s g => A s g → B s g
-  Const x := λ _ _ => x
-  Forall k := λ s g => ∀ u, k u s g
+  And := fun A B => fun s g => A s g ∧ B s g
+  Impl := fun A B => fun s g => A s g → B s g
+  Const x := fun _ _ => x
+  Forall k := fun s g => ∀ u, k u s g
 
 section use_indexed
 open Indexed PreIndexed
@@ -58,22 +58,22 @@ infixr:35 " ⊗ " => And
 infixr:30 " ⊸ " => Impl
 
 notation "○" => Delay
-notation "∀" u "," body => Forall (λ u => body)
+notation "∀" u "," body => Forall (fun u => body)
 
 instance : Coe Tprop Xprop where
-  coe x := λ _ _ => x
+  coe x := fun _ _ => x
 
-def interval (a b : ℝ) (X : Tprop): Tprop :=
-   λ t => ∀ u, ((a + t ≤ u ∧ u ≤ b + t) → X u)
+def interval (a b : ℝ) (X : Tprop) : Tprop :=
+   fun t => ∀ u, ((a + t ≤ u ∧ u ≤ b + t) → X u)
 
 notation "□" => interval
 
 instance : Indexed Xprop where
-  And := λ A B => λ s g => A s g ⊗ B s g
-  Impl := λ A B => λ s g => (□ (-s) (-g) (A s g)) ⊸ (B s g)
-  Delay := λ u A => λ s g => ○ u (A s g)
-  Const x := λ _ _ => Const x
-  Forall k := λ s g => Forall (λ u => k u s g)
+  And := fun A B => fun s g => A s g ⊗ B s g
+  Impl := fun A B => fun s g => (□ (-s) (-g) (A s g)) ⊸ (B s g)
+  Delay := fun u A => fun s g => ○ u (A s g)
+  Const x := fun _ _ => Const x
+  Forall k := fun s g => Forall (fun u => k u s g)
 
 def for_some_timing (A : Xprop) : Prop :=
    ∃ sg : ℝ × ℝ, ∀ t, A sg.1 sg.2 t
@@ -130,14 +130,16 @@ structure Latch (s r q qbar : Location) : Prop where
  qbarside : Nand r q qbar
 
 
-def dia_functor {A B : Xprop} (f : (sg : ℝ × ℝ) → (t : ℝ) → A sg.1 sg.2 t → B sg.1 sg.2 t) (arg : ◇ A) : ◇ B :=
+def dia_functor {A B : Xprop} (f : (sg : ℝ × ℝ) → (t : ℝ)
+    → A sg.1 sg.2 t → B sg.1 sg.2 t) (arg : ◇ A) : ◇ B :=
    let ⟨sg', w⟩ := arg
-   ⟨sg', λ t => f sg' t (w t)⟩
+   ⟨sg', fun t => f sg' t (w t)⟩
 
 def latch_set_q {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (s low ⊸ q high) :=
  L.qside.nand1low
 
-def latch_set_qbar {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (r high ⊗ s low ⊸ qbar low) := by
+def latch_set_qbar {s r q qbar : Location} (L : Latch s r q qbar) :
+    ◇ (r high ⊗ s low ⊸ qbar low) := by
  have y : ◇ ((s low ⊸ q high) ⊗ (r high ⊗ q high ⊸ qbar low)) := by
   apply dia_distrib.mp
   constructor
@@ -150,7 +152,8 @@ def latch_set_qbar {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (r high 
 def latch_reset_qbar {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (r low ⊸ qbar high) :=
  L.qbarside.nand1low
 
-def latch_remain_q {s r q qbar : Location} (L : Latch s r q qbar) : ◇ (q high ⊗ s high ⊗ r high ⊸ q high) := by
+def latch_remain_q {s r q qbar : Location} (L : Latch s r q qbar) :
+    ◇ (q high ⊗ s high ⊗ r high ⊸ q high) := by
  have y : ◇ ((s low ⊸ q high) ⊗ (r high ⊗ q high ⊸ qbar low)) := by
   apply dia_distrib.mp
   constructor

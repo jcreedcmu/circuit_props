@@ -224,9 +224,20 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
     let premise :=
       □[p + q]○[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
       □[p + (n * q + q)]○[q](s high ∧t r high)
+    -- First step is to apply latch_stable1 at ○[nq]. This will give us
+    -- □[q]○[n * q] (qpos sig ∧t qbar (neg sig))
+    have ls1 := latch_stable1 p q s r qpos qbar ℓ sig
+    have ls2 := delay_func (n * q) ls1
+    -- XXX here
+    let subg0 : ⊧ (premise →t ○[n * q] □[q] (qpos sig ∧t qbar (neg sig))) := by
+      sorry
     let subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
       sorry
     let subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
       sorry
     intro t h
     exact ⟨subg1 t h, subg2 t h⟩
+
+-- i.h. is
+--   ⊧□[↑p + ↑q]○[↑n * ↑q](qpos sig ∧t qbar (neg sig)) ∧t □[↑p + ↑n * ↑q]○[↑q](s high ∧t r high) →t
+--       □[↑n * ↑q](qpos sig ∧t qbar (neg sig))

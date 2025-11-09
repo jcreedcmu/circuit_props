@@ -49,7 +49,7 @@ structure Latch (p q : ℝ) (s r qpos qbar : Location) : Prop where
  nand_qpos : Nand p q s qbar qpos
  nand_qbar : Nand p q r qpos qbar
 
-theorem prev_func (p : ℝ) {A B : Tprop} : ⊧ (A →t B) → ⊧ (□[p] A →t □[p]B) :=
+theorem prev_func (p : ℝ) {A B : Tprop} : (⊧ (A →t B)) → (⊧ (□[p] A →t □[p]B)) :=
   fun h t a u hu => h (t - u) (a u hu)
 
 theorem delay_func (p : ℝ) {A B : Tprop} : ⊧ (A →t B) → ⊧ (○[p] A →t ○[p]B) :=
@@ -142,21 +142,17 @@ theorem latch_stable1b (p q : ℝ) (s r qpos qbar : Location)
     intro t ⟨qpl, _, _, _⟩
     exact qpl
 
-theorem latch_stable1 (p q : ℝ) (s r qpos qbar : Location)
+theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
-    ⊧ (□[p]○[q] (qpos sig ∧t qbar (neg sig) ∧t s high ∧t r high)
-        →t (qpos sig ∧t qbar (neg sig))) :=
-  match sig with
+    ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig) ∧t (s high ∧t r high)))
+        →t □[q] (qpos sig ∧t qbar (neg sig)) := by
+  rw [add_comm, prev_concat]
+  refine prev_func _ ?_
+  exact match sig with
   | high => latch_stable1a p q s r qpos qbar ℓ
   | low  => latch_stable1b p q s r qpos qbar ℓ
 
 theorem latch_stable2 (p q : ℝ) (n : ℕ) (s r qpos qbar : Location)
-    (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
-    ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig)) ∧t (s high ∧t r high))
-        →t □[q] (qpos sig ∧t qbar (neg sig)) := by
-  sorry
-
-theorem latch_stable3 (p q : ℝ) (n : ℕ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
     ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig))) ∧t (□[p + q]○[q] (s high ∧t r high))
         →t □[q] (qpos sig ∧t qbar (neg sig)) := by

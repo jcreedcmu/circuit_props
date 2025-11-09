@@ -257,6 +257,22 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
       □[p + q]○[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
       □[p + (n * q + q)]○[q](s high ∧t r high)
 
+    have subgC : ⊧ (premise →t □[p + q + q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
+      rw [← delay_prev_comm, show (p : ℝ) + q = (p + q : ℝ≥0) from rfl, peel,
+          delay_and_dist, delay_prev_comm, nqq_pos, ← delay_concat]
+      intro t ⟨p1, p2⟩
+      refine ⟨p1, ?_⟩
+      have lem := delay_func (n * q) (latch_stable1 p q s r qpos qbar ℓ sig)
+      rw [ delay_and_dist, delay_prev_comm,
+          nqq_pos, ← delay_concat,
+          delay_prev_comm, ← delay_concat,
+          ] at lem
+      refine lem t ⟨p1, ?_⟩
+      have p2' : (□[(↑p + ↑q) + (↑n * ↑q)]○[↑q](s high ∧t r high)) t := by
+        ring_nf at p2 ⊢
+        exact p2
+      exact shrink_interval_right (↑p + ↑q) (n * q) q (s high ∧t r high) t p2'
+
     have hn1 : ⊧ (premise →t □[p + q] ○[q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
       intro t ⟨p1, p2⟩
       refine shrink_interval_right' (p + q) q _ _ ?_

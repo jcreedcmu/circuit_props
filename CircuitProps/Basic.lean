@@ -49,6 +49,25 @@ structure Latch (p q : ℝ) (s r qpos qbar : Location) : Prop where
  nand_qpos : Nand p q s qbar qpos
  nand_qbar : Nand p q r qpos qbar
 
+@[simp]
+theorem prev_zero {A : Tprop} : (□[0] A) = A := by
+  funext t
+  apply propext
+  constructor
+  · intro h
+    specialize h 0 (by simp only [Set.Icc_self, Set.mem_singleton_iff])
+    simp only [sub_zero] at h
+    exact h
+  · intro h u hu
+    simp_all only [Set.Icc_self, Set.mem_singleton_iff, sub_zero]
+
+@[simp]
+theorem delay_zero {A : Tprop} : (○[0] A) = A := by
+  funext t
+  apply propext
+  constructor
+  all_goals simp only [Delay, sub_zero, imp_self]
+
 theorem prev_func (p : ℝ) {A B : Tprop} : (⊧ (A →t B)) → (⊧ (□[p] A →t □[p]B)) :=
   fun h t a u hu => h (t - u) (a u hu)
 
@@ -185,24 +204,27 @@ theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
 
 theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
-    ⊧ (□[p + q]○[n * q + q] (qpos sig ∧t qbar (neg sig))) ∧t
-      (□[p + n * q + q]○[q] (s high ∧t r high)) →t
-       □[n * q + q] (qpos sig ∧t qbar (neg sig)) := by
+    ⊧ (□[p + q]○[n * q] (qpos sig ∧t qbar (neg sig))) ∧t
+      (□[p + n * q]○[q] (s high ∧t r high)) →t
+       □[n * q] (qpos sig ∧t qbar (neg sig)) := by
   induction n with
   | zero =>
-    simp only [CharP.cast_eq_zero, zero_mul, zero_add, add_zero]
-    exact latch_stable1 p q s r qpos qbar ℓ sig
+    simp only [CharP.cast_eq_zero, zero_mul, delay_zero, add_zero, prev_zero]
+    intro t h
+    obtain h1 := h.1 0 (by simp only [Set.mem_Icc, le_refl, true_and]; positivity)
+    simp only [sub_zero] at h1
+    exact h1
   | succ n hn =>
-    have nqq_pos : (n : ℝ) * (q : ℝ) + (q : ℝ) = (n * q + q : ℝ≥0) :=  rfl
-    have hh : (((n + 1) : ℕ) * (q : ℝ) + (q : ℝ)) = ((n * q + q) + q) := by
+    have nqq_pos : (n : ℝ) * (q : ℝ) = (n * q  : ℝ≥0) :=  rfl
+    have hh : (((n + 1) : ℕ) * (q : ℝ) ) = ((n * q) + q) := by
       push_cast
       ring_nf
     rw [hh]
     conv => arg 1; rhs; rw[nqq_pos, peel]
     let premise :=
-     □[p + q]○[n * q + q + q](qpos sig ∧t qbar (neg sig)) ∧t
-     □[p + ↑(n + 1) * q + q]○[q](s high ∧t r high)
-    let subg1 : ⊧ (premise →t □[n * q + q]○[q](qpos sig ∧t qbar (neg sig))) := by
+      □[p + q]○[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
+      □[p + (n * q + q)]○[q](s high ∧t r high)
+    let subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
       sorry
     let subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
       sorry

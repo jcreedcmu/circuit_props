@@ -134,6 +134,24 @@ lemma and4_assoc (A B C D : Tprop) : ((A ∧t B) ∧t C ∧t D) = (A ∧t B ∧t
   · intro ⟨a, b, c, d⟩
     exact ⟨⟨a, b⟩, c, d⟩
 
+lemma delay_prev_comm (p q : ℝ) (A : Tprop) : (○[p] □[q] A) = (□[q] ○[p] A) := by
+  funext t
+  apply propext
+  constructor; all_goals
+    intro h u hu
+    specialize h u hu
+    simp_all only [Delay]
+    ring_nf at h ⊢
+    exact h
+
+lemma smaller_interval (p : ℝ) (q : ℝ≥0) (r : ℝ) (A : Tprop) :
+    ⊧ (□[p + q] ○[r] A) →t (□[p] ○[q + r] A) := by
+  intro t h u hu
+  specialize h (u + q) (by grind [zero_le_coe])
+  simp_all only [Delay]
+  ring_nf at h ⊢
+  exact h
+
 /--
 Knowing that `A` was true for the past `p+q` time
 is the same thing as knowing that `A` was true
@@ -215,7 +233,7 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
     simp only [sub_zero] at h1
     exact h1
   | succ n hn =>
-    have nqq_pos : (n : ℝ) * (q : ℝ) = (n * q  : ℝ≥0) :=  rfl
+    have nqq_pos : (n : ℝ) * (q : ℝ) = (n * q  : ℝ≥0) := rfl
     have hh : (((n + 1) : ℕ) * (q : ℝ) ) = ((n * q) + q) := by
       push_cast
       ring_nf
@@ -228,16 +246,25 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
     -- □[q]○[n * q] (qpos sig ∧t qbar (neg sig))
     have ls1 := latch_stable1 p q s r qpos qbar ℓ sig
     have ls2 := delay_func (n * q) ls1
-    -- XXX here
+    clear ls1
+    have nqq_pos : (n : ℝ) * (q : ℝ) = (n * q  : ℝ≥0) := rfl
+    rw [ delay_and_dist, delay_prev_comm,
+        nqq_pos, ← delay_concat,
+        delay_prev_comm, ← delay_concat,
+        ] at ls2
+
     let subg0 : ⊧ (premise →t ○[n * q] □[q] (qpos sig ∧t qbar (neg sig))) := by
-      sorry
+      intro t ⟨p1, p2⟩
+      refine ls2 t ⟨?_, ?_⟩
+      · exact p1
+      · have p2' : (□[(↑p + ↑q) + (↑n * ↑q)]○[↑q](s high ∧t r high)) t := by
+          ring_nf at p2 ⊢
+          exact p2
+        exact smaller_interval (↑p + ↑q) (n * q) q (s high ∧t r high) t p2'
+
     let subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
       sorry
     let subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
       sorry
     intro t h
     exact ⟨subg1 t h, subg2 t h⟩
-
--- i.h. is
---   ⊧□[↑p + ↑q]○[↑n * ↑q](qpos sig ∧t qbar (neg sig)) ∧t □[↑p + ↑n * ↑q]○[↑q](s high ∧t r high) →t
---       □[↑n * ↑q](qpos sig ∧t qbar (neg sig))

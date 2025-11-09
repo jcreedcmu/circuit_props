@@ -152,6 +152,14 @@ lemma shrink_interval_right (p : ℝ) (q : ℝ≥0) (r : ℝ) (A : Tprop) :
   ring_nf at h ⊢
   exact h
 
+lemma shrink_interval_right' (p : ℝ) (q : ℝ≥0) (A : Tprop) :
+    ⊧ (□[p + q] A) →t (□[p] ○[q] A) := by
+  intro t h u hu
+  specialize h (u + q) (by grind [zero_le_coe])
+  simp_all only [Delay]
+  ring_nf at h ⊢
+  exact h
+
 lemma shrink_interval_left (p : ℝ) (q : ℝ≥0) (A : Tprop) :
     ⊧ (□[p + q] A →t (□[p] A)) := by
   intro t h u hu
@@ -249,10 +257,11 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
       □[p + q]○[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
       □[p + (n * q + q)]○[q](s high ∧t r high)
 
-    have subgC : ⊧ (premise →t □[p + q + q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
+    have hn1 : ⊧ (premise →t □[p + q] ○[q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
+      intro t ⟨p1, p2⟩
+      refine shrink_interval_right' (p + q) q _ _ ?_
       rw [← delay_prev_comm, show (p : ℝ) + q = (p + q : ℝ≥0) from rfl, peel,
           delay_and_dist, delay_prev_comm, nqq_pos, ← delay_concat]
-      intro t ⟨p1, p2⟩
       refine ⟨p1, ?_⟩
       have lem := delay_func (n * q) (latch_stable1 p q s r qpos qbar ℓ sig)
       rw [ delay_and_dist, delay_prev_comm,
@@ -265,20 +274,18 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
         exact p2
       exact shrink_interval_right (↑p + ↑q) (n * q) q (s high ∧t r high) t p2'
 
-    have hn1 : ⊧ (premise →t □[p + q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
-      intro t pr
-      exact shrink_interval_left _ _ _ _ (subgC t pr)
-    have hn2 : ⊧ (premise →t □[↑p + ↑n * ↑q]○[↑q](s high ∧t r high)) := by
+    have hn2 : ⊧ (premise →t □[↑p + ↑n * ↑q]○[↑q]○[↑q](s high ∧t r high)) := by
       intro t ⟨_, pr2⟩
       ring_nf at pr2
-      exact shrink_interval_left _ q _ _ pr2
+      exact shrink_interval_right' _ q _ _ pr2
 
     let subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
       intro t pr
-      let z := hn t ⟨?_, ?_⟩
-      · sorry
-      · sorry
-      sorry
+      obtain hn' := delay_func q hn
+      rw [delay_and_dist] at hn'
+      repeat rw [delay_prev_comm] at hn'
+      exact hn' t ⟨hn1 t pr, hn2 t pr⟩
+
     let subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
       sorry
     intro t h

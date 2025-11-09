@@ -84,6 +84,28 @@ theorem delay_concat (p q : ℝ≥0) (A : Tprop) : (○[p + q] A) = (○[p] ○[
     ring_nf at h ⊢
     exact h
 
+theorem prev_and_dist (p : ℝ) (A B : Tprop) : (□[p] (A ∧t B)) = ((□[p] A) ∧t (□[p] B)) := by
+  funext t
+  apply propext
+  constructor
+  · intro h
+    constructor
+    · intro u hu
+      specialize h u hu
+      exact h.1
+    · intro u hu
+      specialize h u hu
+      exact h.2
+  · intro h u hu
+    constructor
+    · exact h.1 u hu
+    · exact h.2 u hu
+
+theorem delay_and_dist (p : ℝ) (A B : Tprop) : (○[p] (A ∧t B)) = ((○[p] A) ∧t (○[p] B)) := by
+  funext t
+  apply propext
+  exact ⟨id, id⟩
+
 /--
 Knowing that `A` was true for the past `p+q` time
 is the same thing as knowing that `A` was true
@@ -144,7 +166,7 @@ theorem latch_stable1b (p q : ℝ) (s r qpos qbar : Location)
 
 theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
-    ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig) ∧t (s high ∧t r high)))
+    ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig) ∧t s high ∧t r high))
         →t □[q] (qpos sig ∧t qbar (neg sig)) := by
   rw [add_comm, prev_concat]
   refine prev_func _ ?_
@@ -152,9 +174,15 @@ theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
   | high => latch_stable1a p q s r qpos qbar ℓ
   | low  => latch_stable1b p q s r qpos qbar ℓ
 
-theorem latch_stable2 (p q : ℝ) (n : ℕ) (s r qpos qbar : Location)
+theorem latch_stable2 (p q : ℝ≥0) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
     ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig))) ∧t (□[p + q]○[q] (s high ∧t r high))
         →t □[q] (qpos sig ∧t qbar (neg sig)) := by
   intro t ⟨h1, h2⟩
-  sorry
+  refine latch_stable1 p q s r qpos qbar ℓ sig t ?_
+  intro u hu
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · exact h1 u hu |>.1
+  · exact h1 u hu |>.2
+  · exact h2 u hu |>.1
+  · exact h2 u hu |>.2

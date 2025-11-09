@@ -257,6 +257,7 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
       □[p + q]○[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
       □[p + (n * q + q)]○[q](s high ∧t r high)
 
+    -- Dead code?
     have subgC : ⊧ (premise →t □[p + q + q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
       rw [← delay_prev_comm, show (p : ℝ) + q = (p + q : ℝ≥0) from rfl, peel,
           delay_and_dist, delay_prev_comm, nqq_pos, ← delay_concat]
@@ -290,7 +291,20 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
       repeat rw [delay_prev_comm] at hn'
       exact hn' t ⟨hn1 t pr, hn2 t pr⟩
 
-    have subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
+    have combine : ⊧ (premise →t □[p + q + n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
       sorry
+
+    have subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
+      intro t ⟨pr1, pr2⟩
+      refine latch_stable1 p q s r qpos qbar ℓ sig t ⟨?_, ?_⟩
+      · apply shrink_interval_left (q := n * q)
+        push_cast at combine ⊢
+        ring_nf at combine ⊢
+        exact combine t ⟨pr1, pr2⟩
+      · apply shrink_interval_left (q := n * q)
+        push_cast at pr2 ⊢
+        ring_nf at pr2 ⊢
+        exact pr2
+
     intro t h
     exact ⟨subg1 t h, subg2 t h⟩

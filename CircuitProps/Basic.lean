@@ -45,6 +45,12 @@ structure Latch (p q : ℝ) (s r qpos qbar : Location) : Prop where
  nand_qpos : Nand p q s qbar qpos
  nand_qbar : Nand p q r qpos qbar
 
+theorem prev_func (p : ℝ) {A B : Tprop} : ⊧ (A →t B) → ⊧ (□[p] A →t □[p]B) :=
+  fun h t a u hu => h (t - u) (a u hu)
+
+theorem delay_func (p : ℝ) {A B : Tprop} : ⊧ (A →t B) → ⊧ (○[p] A →t ○[p]B) :=
+  fun h t a => h (t - p) a
+
 /--
 Knowing that `A` was true for the past `p+q` time
 is the same thing as knowing that `A` was true
@@ -74,6 +80,20 @@ theorem peel (p q : ℝ≥0) (A : Tprop) :
       simp only [Delay] at h1
       ring_nf at h1
       exact h1
+
+theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
+    (ℓ : Latch p q s r qpos qbar) :
+    ⊧ (□[p]○[q] (qpos high ∧t qbar low ∧t s high ∧t r high) →t (qpos high ∧t qbar low)) := by
+  intro t h
+  constructor
+  · apply ℓ.nand_qpos.low1
+    refine prev_func (↑p) (delay_func (↑q) ?_) t h
+    intro t ⟨_, qbl, _, _⟩
+    exact qbl
+  · apply ℓ.nand_qbar.high01
+    refine prev_func (↑p) (delay_func (↑q) ?_) t h
+    intro t ⟨qph,_,_,rh⟩
+    exact ⟨rh, qph⟩
 
 theorem nand_reset (p q : ℝ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) :

@@ -74,6 +74,16 @@ theorem prev_concat (p q : ℝ≥0) (A : Tprop) : (□[p + q] A) = (□[p] □[q
       ring_nf at h
       exact h
 
+theorem delay_concat (p q : ℝ≥0) (A : Tprop) : (○[p + q] A) = (○[p] ○[q] A) := by
+  funext t
+  apply propext
+  constructor
+  all_goals
+  · intro h
+    simp_all only [Delay]
+    ring_nf at h ⊢
+    exact h
+
 /--
 Knowing that `A` was true for the past `p+q` time
 is the same thing as knowing that `A` was true

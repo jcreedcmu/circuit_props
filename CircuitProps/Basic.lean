@@ -55,6 +55,25 @@ theorem prev_func (p : ℝ) {A B : Tprop} : ⊧ (A →t B) → ⊧ (□[p] A →
 theorem delay_func (p : ℝ) {A B : Tprop} : ⊧ (A →t B) → ⊧ (○[p] A →t ○[p]B) :=
   fun h t a => h (t - p) a
 
+theorem prev_concat (p q : ℝ≥0) (A : Tprop) : (□[p + q] A) = (□[p] □[q] A) := by
+  funext t
+  apply propext
+  constructor
+  · intro h u hu v hv
+    specialize h (u + v) (by grind)
+    ring_nf at h ⊢
+    exact h
+  · intro h u hu
+    cases lt_or_ge u q with
+    | inl h' =>
+      specialize h 0 (by simp only [Set.mem_Icc, le_refl, zero_le_coe, and_self]) u (by grind)
+      ring_nf at h
+      exact h
+    | inr h' =>
+      specialize h (u - q) (by grind) q (by simp only [Set.mem_Icc, zero_le_coe, le_refl, and_self])
+      ring_nf at h
+      exact h
+
 /--
 Knowing that `A` was true for the past `p+q` time
 is the same thing as knowing that `A` was true
@@ -120,3 +139,16 @@ theorem latch_stable1 (p q : ℝ) (s r qpos qbar : Location)
   match sig with
   | high => latch_stable1a p q s r qpos qbar ℓ
   | low  => latch_stable1b p q s r qpos qbar ℓ
+
+theorem latch_stable2 (p q : ℝ) (n : ℕ) (s r qpos qbar : Location)
+    (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
+    ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig)) ∧t (s high ∧t r high))
+        →t □[q] (qpos sig ∧t qbar (neg sig)) := by
+  sorry
+
+theorem latch_stable3 (p q : ℝ) (n : ℕ) (s r qpos qbar : Location)
+    (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
+    ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig))) ∧t (□[p + q]○[q] (s high ∧t r high))
+        →t □[q] (qpos sig ∧t qbar (neg sig)) := by
+  intro t ⟨h1, h2⟩
+  sorry

@@ -182,3 +182,29 @@ theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
   exact match sig with
   | high => latch_stable1a p q s r qpos qbar ℓ
   | low  => latch_stable1b p q s r qpos qbar ℓ
+
+theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
+    (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
+    ⊧ (□[p + q]○[n * q + q] (qpos sig ∧t qbar (neg sig))) ∧t
+      (□[p + n * q + q]○[q] (s high ∧t r high)) →t
+       □[n * q + q] (qpos sig ∧t qbar (neg sig)) := by
+  induction n with
+  | zero =>
+    simp only [CharP.cast_eq_zero, zero_mul, zero_add, add_zero]
+    exact latch_stable1 p q s r qpos qbar ℓ sig
+  | succ n hn =>
+    have nqq_pos : (n : ℝ) * (q : ℝ) + (q : ℝ) = (n * q + q : ℝ≥0) :=  rfl
+    have hh : (((n + 1) : ℕ) * (q : ℝ) + (q : ℝ)) = ((n * q + q) + q) := by
+      push_cast
+      ring_nf
+    rw [hh]
+    conv => arg 1; rhs; rw[nqq_pos, peel]
+    let premise :=
+     □[p + q]○[n * q + q + q](qpos sig ∧t qbar (neg sig)) ∧t
+     □[p + ↑(n + 1) * q + q]○[q](s high ∧t r high)
+    let subg1 : ⊧ (premise →t □[n * q + q]○[q](qpos sig ∧t qbar (neg sig))) := by
+      sorry
+    let subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
+      sorry
+    intro t h
+    exact ⟨subg1 t h, subg2 t h⟩

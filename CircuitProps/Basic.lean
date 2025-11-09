@@ -257,44 +257,27 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
       □[p + q]○[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
       □[p + (n * q + q)]○[q](s high ∧t r high)
 
-    -- Dead code?
-    have subgC : ⊧ (premise →t □[p + q + q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
-      rw [← delay_prev_comm, show (p : ℝ) + q = (p + q : ℝ≥0) from rfl, peel,
-          delay_and_dist, delay_prev_comm, nqq_pos, ← delay_concat]
-      intro t ⟨p1, p2⟩
-      refine ⟨p1, ?_⟩
-      have lem := delay_func (n * q) (latch_stable1 p q s r qpos qbar ℓ sig)
-      rw [ delay_and_dist, delay_prev_comm,
-          nqq_pos, ← delay_concat,
-          delay_prev_comm, ← delay_concat,
-          ] at lem
-      refine lem t ⟨p1, ?_⟩
-      have p2' : (□[(↑p + ↑q) + (↑n * ↑q)]○[↑q](s high ∧t r high)) t := by
-        ring_nf at p2 ⊢
-        exact p2
-      exact shrink_interval_right (↑p + ↑q) (n * q) q (s high ∧t r high) t p2'
-
-    have hn1 : ⊧ (premise →t □[p + q] ○[q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
-      rw [nqq_pos, ← delay_concat, add_comm (q : ℝ)]
-      intro t ⟨pr1, _⟩
-      exact pr1
-
-    have hn2 : ⊧ (premise →t □[↑p + ↑n * ↑q]○[↑q]○[↑q](s high ∧t r high)) := by
-      intro t ⟨_, pr2⟩
-      ring_nf at pr2
-      exact shrink_interval_right' _ q _ _ pr2
-
     have subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
+      have hn1 : ⊧ (premise →t □[p + q] ○[q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
+        rw [nqq_pos, ← delay_concat, add_comm (q : ℝ)]
+        intro t ⟨pr1, _⟩
+        exact pr1
+      have hn2 : ⊧ (premise →t □[↑p + ↑n * ↑q]○[↑q]○[↑q](s high ∧t r high)) := by
+        intro t ⟨_, pr2⟩
+        ring_nf at pr2
+        exact shrink_interval_right' _ q _ _ pr2
       intro t pr
       obtain hn' := delay_func q hn
       rw [delay_and_dist] at hn'
       repeat rw [delay_prev_comm] at hn'
       exact hn' t ⟨hn1 t pr, hn2 t pr⟩
 
-    have combine : ⊧ (premise →t □[p + q + n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
-      sorry
-
     have subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
+      have combine : ⊧ (premise →t □[(p + q) + (n * q)]○[q](qpos sig ∧t qbar (neg sig))) := by
+        have : (p : ℝ)  + (q : ℝ) + (n : ℝ) * (q : ℝ) = (p + q : ℝ≥0) + (n * q : ℝ≥0) := by rfl
+        rw [this, peel, ← delay_concat]
+        intro t pr
+        exact ⟨ pr.1, subg1 t pr⟩
       intro t ⟨pr1, pr2⟩
       refine latch_stable1 p q s r qpos qbar ℓ sig t ⟨?_, ?_⟩
       · apply shrink_interval_left (q := n * q)

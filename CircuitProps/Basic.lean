@@ -6,6 +6,10 @@ inductive Signal where
  | low
 open Signal
 
+def neg : Signal → Signal
+| high => low
+| low => high
+
 -- A Tprop is a proposition indexed by time
 def Tprop := (t : ℝ) → Prop
 
@@ -81,7 +85,7 @@ theorem peel (p q : ℝ≥0) (A : Tprop) :
       ring_nf at h1
       exact h1
 
-theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
+theorem latch_stable1a (p q : ℝ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) :
     ⊧ (□[p]○[q] (qpos high ∧t qbar low ∧t s high ∧t r high) →t (qpos high ∧t qbar low)) := by
   intro t h
@@ -94,6 +98,28 @@ theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
     refine prev_func (↑p) (delay_func (↑q) ?_) t h
     intro t ⟨qph,_,_,rh⟩
     exact ⟨rh, qph⟩
+
+theorem latch_stable1b (p q : ℝ) (s r qpos qbar : Location)
+    (ℓ : Latch p q s r qpos qbar) :
+    ⊧ (□[p]○[q] (qpos low ∧t qbar high ∧t s high ∧t r high) →t (qpos low ∧t qbar high)) := by
+  intro t h
+  constructor
+  · apply ℓ.nand_qpos.high01
+    refine prev_func (↑p) (delay_func (↑q) ?_) t h
+    intro t ⟨_, qbh, sht, _⟩
+    exact ⟨sht, qbh⟩
+  · apply ℓ.nand_qbar.low1
+    refine prev_func (↑p) (delay_func (↑q) ?_) t h
+    intro t ⟨qpl, _, _, _⟩
+    exact qpl
+
+theorem latch_stable1 (p q : ℝ) (s r qpos qbar : Location)
+    (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
+    ⊧ (□[p]○[q] (qpos sig ∧t qbar (neg sig) ∧t s high ∧t r high)
+        →t (qpos sig ∧t qbar (neg sig))) :=
+  match sig with
+  | high => latch_stable1a p q s r qpos qbar ℓ
+  | low  => latch_stable1b p q s r qpos qbar ℓ
 
 theorem nand_reset (p q : ℝ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) :

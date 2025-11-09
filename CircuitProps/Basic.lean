@@ -144,12 +144,18 @@ lemma delay_prev_comm (p q : ℝ) (A : Tprop) : (○[p] □[q] A) = (□[q] ○[
     ring_nf at h ⊢
     exact h
 
-lemma smaller_interval (p : ℝ) (q : ℝ≥0) (r : ℝ) (A : Tprop) :
+lemma shrink_interval_right (p : ℝ) (q : ℝ≥0) (r : ℝ) (A : Tprop) :
     ⊧ (□[p + q] ○[r] A) →t (□[p] ○[q + r] A) := by
   intro t h u hu
   specialize h (u + q) (by grind [zero_le_coe])
   simp_all only [Delay]
   ring_nf at h ⊢
+  exact h
+
+lemma shrink_interval_left (p : ℝ) (q : ℝ≥0) (A : Tprop) :
+    ⊧ (□[p + q] A →t (□[p] A)) := by
+  intro t h u hu
+  specialize h u (by grind [zero_le_coe])
   exact h
 
 /--
@@ -242,25 +248,23 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
     let premise :=
       □[p + q]○[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
       □[p + (n * q + q)]○[q](s high ∧t r high)
-    -- First step is to apply latch_stable1 at ○[nq]. This will give us
-    -- □[q]○[n * q] (qpos sig ∧t qbar (neg sig))
-    have ls1 := latch_stable1 p q s r qpos qbar ℓ sig
-    have ls2 := delay_func (n * q) ls1
-    clear ls1
-    have nqq_pos : (n : ℝ) * (q : ℝ) = (n * q  : ℝ≥0) := rfl
-    rw [ delay_and_dist, delay_prev_comm,
-        nqq_pos, ← delay_concat,
-        delay_prev_comm, ← delay_concat,
-        ] at ls2
 
-    let subg0 : ⊧ (premise →t ○[n * q] □[q] (qpos sig ∧t qbar (neg sig))) := by
+    have subgC : ⊧ (premise →t ○[n * q] (□[p + q + q](qpos sig ∧t qbar (neg sig)))) := by
+      rw [show (p : ℝ) + q = (p + q : ℝ≥0) from rfl, peel,
+          delay_and_dist, delay_prev_comm, nqq_pos, ← delay_concat]
+
       intro t ⟨p1, p2⟩
-      refine ls2 t ⟨?_, ?_⟩
-      · exact p1
-      · have p2' : (□[(↑p + ↑q) + (↑n * ↑q)]○[↑q](s high ∧t r high)) t := by
-          ring_nf at p2 ⊢
-          exact p2
-        exact smaller_interval (↑p + ↑q) (n * q) q (s high ∧t r high) t p2'
+      refine ⟨p1, ?_⟩
+      have lem := delay_func (n * q) (latch_stable1 p q s r qpos qbar ℓ sig)
+      rw [ delay_and_dist, delay_prev_comm,
+          nqq_pos, ← delay_concat,
+          delay_prev_comm, ← delay_concat,
+          ] at lem
+      refine lem t ⟨p1, ?_⟩
+      have p2' : (□[(↑p + ↑q) + (↑n * ↑q)]○[↑q](s high ∧t r high)) t := by
+        ring_nf at p2 ⊢
+        exact p2
+      exact shrink_interval_right (↑p + ↑q) (n * q) q (s high ∧t r high) t p2'
 
     let subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
       sorry

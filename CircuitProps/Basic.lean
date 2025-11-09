@@ -274,35 +274,23 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
       exact shrink_interval_right (↑p + ↑q) (n * q) q (s high ∧t r high) t p2'
 
     have hn1 : ⊧ (premise →t □[p + q] ○[q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
-      intro t ⟨p1, p2⟩
-      refine shrink_interval_right' (p + q) q _ _ ?_
-      rw [← delay_prev_comm, show (p : ℝ) + q = (p + q : ℝ≥0) from rfl, peel,
-          delay_and_dist, delay_prev_comm, nqq_pos, ← delay_concat]
-      refine ⟨p1, ?_⟩
-      have lem := delay_func (n * q) (latch_stable1 p q s r qpos qbar ℓ sig)
-      rw [ delay_and_dist, delay_prev_comm,
-          nqq_pos, ← delay_concat,
-          delay_prev_comm, ← delay_concat,
-          ] at lem
-      refine lem t ⟨p1, ?_⟩
-      have p2' : (□[(↑p + ↑q) + (↑n * ↑q)]○[↑q](s high ∧t r high)) t := by
-        ring_nf at p2 ⊢
-        exact p2
-      exact shrink_interval_right (↑p + ↑q) (n * q) q (s high ∧t r high) t p2'
+      rw [nqq_pos, ← delay_concat, add_comm (q : ℝ)]
+      intro t ⟨pr1, _⟩
+      exact pr1
 
     have hn2 : ⊧ (premise →t □[↑p + ↑n * ↑q]○[↑q]○[↑q](s high ∧t r high)) := by
       intro t ⟨_, pr2⟩
       ring_nf at pr2
       exact shrink_interval_right' _ q _ _ pr2
 
-    let subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
+    have subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
       intro t pr
       obtain hn' := delay_func q hn
       rw [delay_and_dist] at hn'
       repeat rw [delay_prev_comm] at hn'
       exact hn' t ⟨hn1 t pr, hn2 t pr⟩
 
-    let subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
+    have subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
       sorry
     intro t h
     exact ⟨subg1 t h, subg2 t h⟩

@@ -1,4 +1,5 @@
 import Mathlib
+open NNReal
 
 inductive Signal where
  | high
@@ -14,15 +15,15 @@ def Location := Signal → Tprop
 
 def Univ (A : Tprop) : Prop :=
   ∀ t, A t
-prefix:30 "■" => Univ
+prefix:30 "⊧" => Univ
 
 def Prev (p : ℝ) (A : Tprop) : Tprop :=
   fun t => ∀ u ∈ Set.Icc 0 p, A (t - u)
-notation "□[" p "]" q:40 => Prev p q
+notation "□[" p "]" q:60 => Prev p q
 
 def Delay (p : ℝ) (A : Tprop) : Tprop :=
   fun t => A (t - p)
-notation "○[" p "]" q:40 => Delay p q
+notation "○[" p "]" q:60 => Delay p q
 
 def Andt (A B : Tprop) : Tprop := fun t => A t ∧ B t
 def Impt (A B : Tprop) : Tprop := fun t => A t → B t
@@ -31,9 +32,9 @@ infixr:35 " ∧t " => Andt
 infixr:30 " →t " => Impt
 
 structure Nand (p q : ℝ) (in0 in1 out : Location) where
-  low0 : ■ (□[p] ○[q] (in0 low) →t out high)
-  low1 : ■ (□[p] ○[q] (in1 low) →t out high)
-  high01 : ■ (□[p] ○[q] (in0 high ∧t in1 high) →t out low)
+  low0 : ⊧ (□[p] ○[q] (in0 low) →t out high)
+  low1 : ⊧ (□[p] ○[q] (in1 low) →t out high)
+  high01 : ⊧ (□[p] ○[q] (in0 high ∧t in1 high) →t out low)
 
 example (p q : ℝ) (in0 in1 out : Location) :
     (□[p] ○[q] (in0 high ∧t in1 high) →t out low) =
@@ -44,9 +45,39 @@ structure Latch (p q : ℝ) (s r qpos qbar : Location) : Prop where
  nand_qpos : Nand p q s qbar qpos
  nand_qbar : Nand p q r qpos qbar
 
+/--
+Knowing that `A` was true for the past `p+q` time
+is the same thing as knowing that `A` was true
+for a segment of time of length `q`, and also
+for a segment of length `p` shifted `q` into the past.
+-/
+theorem peel (p q : ℝ≥0) (A : Tprop) :
+   □[p+q] A = (□[p] ○[q] A ∧t □[q] A) := by
+  funext t
+  apply propext
+  constructor
+  · intro h
+    constructor
+    · intro u hu
+      simp only [Delay]
+      specialize h (u + q) (by grind [zero_le_coe])
+      ring_nf at h ⊢
+      exact h
+    · intro u hu
+      simp only [Prev] at h
+      exact h u (by grind [zero_le_coe])
+  · intro ⟨h1, h2⟩ u hu
+    cases lt_or_ge u q with
+    | inl h => exact h2 u (by grind)
+    | inr h =>
+      specialize h1 (u - q) (by grind)
+      simp only [Delay] at h1
+      ring_nf at h1
+      exact h1
+
 theorem nand_reset (p q : ℝ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) :
-    ■ (□[2 * p + q] ○[q] (r low ∧t s high) →t (qpos low ∧t qbar high)) := by
+    ⊧ (□[2 * p + q] ○[q] (r low ∧t s high) →t (qpos low ∧t qbar high)) := by
   intro t h
   have hh : qbar high t := by
     apply ℓ.nand_qbar.low0

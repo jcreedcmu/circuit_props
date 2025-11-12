@@ -23,11 +23,19 @@ prefix:30 "⊧" => Univ
 
 def Prev (p : ℝ) (A : Tprop) : Tprop :=
   fun t => ∀ u ∈ Set.Icc 0 p, A (t - u)
-notation "□[" p "]" q:60 => Prev p q
+notation "■[" p "]" q:60 => Prev p q
+
+def Next (p : ℝ) (A : Tprop) : Tprop :=
+  fun t => ∀ u ∈ Set.Icc 0 p, A (t + u)
+notation "□[" p "]" q:60 => Next p q
 
 def Delay (p : ℝ) (A : Tprop) : Tprop :=
   fun t => A (t - p)
-notation "○[" p "]" q:60 => Delay p q
+notation "●[" p "]" q:60 => Delay p q
+
+def Postpone (p : ℝ) (A : Tprop) : Tprop :=
+  fun t => A (t + p)
+notation "○[" p "]" q:60 => Postpone p q
 
 def Andt (A B : Tprop) : Tprop := fun t => A t ∧ B t
 def Impt (A B : Tprop) : Tprop := fun t => A t → B t
@@ -36,13 +44,13 @@ infixr:35 " ∧t " => Andt
 infixr:30 " →t " => Impt
 
 structure Nand (p q : ℝ) (in0 in1 out : Location) where
-  low0 : ⊧ (□[p] ○[q] (in0 low) →t out high)
-  low1 : ⊧ (□[p] ○[q] (in1 low) →t out high)
-  high01 : ⊧ (□[p] ○[q] (in0 high ∧t in1 high) →t out low)
+  low0 : ⊧ (■[p] ●[q] (in0 low) →t out high)
+  low1 : ⊧ (■[p] ●[q] (in1 low) →t out high)
+  high01 : ⊧ (■[p] ●[q] (in0 high ∧t in1 high) →t out low)
 
 example (p q : ℝ) (in0 in1 out : Location) :
-    (□[p] ○[q] (in0 high ∧t in1 high) →t out low) =
-   ((□[p] (○[q] (in0 high ∧t in1 high))) →t out low) := by
+    (■[p] ●[q] (in0 high ∧t in1 high) →t out low) =
+   ((■[p] (●[q] (in0 high ∧t in1 high))) →t out low) := by
    rfl
 
 structure Latch (p q : ℝ) (s r qpos qbar : Location) : Prop where
@@ -50,7 +58,7 @@ structure Latch (p q : ℝ) (s r qpos qbar : Location) : Prop where
  nand_qbar : Nand p q r qpos qbar
 
 @[simp]
-theorem prev_zero {A : Tprop} : (□[0] A) = A := by
+theorem prev_zero {A : Tprop} : (■[0] A) = A := by
   funext t
   apply propext
   constructor
@@ -62,19 +70,28 @@ theorem prev_zero {A : Tprop} : (□[0] A) = A := by
     simp_all only [Set.Icc_self, Set.mem_singleton_iff, sub_zero]
 
 @[simp]
-theorem delay_zero {A : Tprop} : (○[0] A) = A := by
+theorem delay_zero {A : Tprop} : (●[0] A) = A := by
   funext t
   apply propext
   constructor
   all_goals simp only [Delay, sub_zero, imp_self]
 
-theorem prev_func (p : ℝ) {A B : Tprop} : (⊧ (A →t B)) → (⊧ (□[p] A →t □[p]B)) :=
+theorem prev_func (p : ℝ) {A B : Tprop} : (⊧ (A →t B)) → (⊧ (■[p] A →t ■[p]B)) :=
   fun h t a u hu => h (t - u) (a u hu)
 
-theorem delay_func (p : ℝ) {A B : Tprop} : ⊧ (A →t B) → ⊧ (○[p] A →t ○[p]B) :=
+theorem delay_func (p : ℝ) {A B : Tprop} : ⊧ (A →t B) → ⊧ (●[p] A →t ●[p]B) :=
   fun h t a => h (t - p) a
 
-theorem prev_concat (p q : ℝ≥0) (A : Tprop) : (□[p + q] A) = (□[p] □[q] A) := by
+theorem postpone_func_eq (p : ℝ) {A B : Tprop} : (⊧ (A →t B)) = (⊧ (○[p] A →t ○[p]B)) := by
+  apply propext
+  constructor
+  · exact fun h t a => h (t + p) a
+  · intro h t
+    specialize h (t - p)
+    simp only [Impt, Postpone, sub_add_cancel] at h
+    exact h
+
+theorem prev_concat (p q : ℝ≥0) (A : Tprop) : (■[p + q] A) = (■[p] ■[q] A) := by
   funext t
   apply propext
   constructor
@@ -93,7 +110,7 @@ theorem prev_concat (p q : ℝ≥0) (A : Tprop) : (□[p + q] A) = (□[p] □[q
       ring_nf at h
       exact h
 
-theorem delay_concat (p q : ℝ≥0) (A : Tprop) : (○[p + q] A) = (○[p] ○[q] A) := by
+theorem delay_concat (p q : ℝ) (A : Tprop) : (●[p + q] A) = (●[p] ●[q] A) := by
   funext t
   apply propext
   constructor
@@ -103,7 +120,41 @@ theorem delay_concat (p q : ℝ≥0) (A : Tprop) : (○[p + q] A) = (○[p] ○[
     ring_nf at h ⊢
     exact h
 
-theorem prev_and_dist (p : ℝ) (A B : Tprop) : (□[p] (A ∧t B)) = ((□[p] A) ∧t (□[p] B)) := by
+theorem postpone_concat (p q : ℝ) (A : Tprop) : (○[p + q] A) = (○[p] ○[q] A) := by
+  funext t
+  apply propext
+  constructor
+  all_goals
+  · intro h
+    simp_all only [Postpone]
+    ring_nf at h ⊢
+    exact h
+
+theorem postpone_comm (p q : ℝ) (A : Tprop) : (○[p] ○[q] A) = (○[q] ○[p] A) := by
+  funext t
+  apply propext
+  constructor
+  all_goals
+  · intro h
+    simp_all only [Postpone]
+    ring_nf at h ⊢
+    exact h
+
+@[simp]
+theorem postpone_zero (A : Tprop) : (○[0] A) = A := by
+  funext t
+  apply propext
+  constructor
+  · intro h
+    simp_all only [Postpone]
+    ring_nf at h
+    exact h
+  · intro h
+    simp_all only [Postpone]
+    ring_nf at ⊢
+    exact h
+
+theorem prev_and_dist (p : ℝ) (A B : Tprop) : (■[p] (A ∧t B)) = ((■[p] A) ∧t (■[p] B)) := by
   funext t
   apply propext
   constructor
@@ -120,7 +171,17 @@ theorem prev_and_dist (p : ℝ) (A B : Tprop) : (□[p] (A ∧t B)) = ((□[p] A
     · exact h.1 u hu
     · exact h.2 u hu
 
-theorem delay_and_dist (p : ℝ) (A B : Tprop) : (○[p] (A ∧t B)) = ((○[p] A) ∧t (○[p] B)) := by
+theorem delay_and_dist (p : ℝ) (A B : Tprop) : (●[p] (A ∧t B)) = ((●[p] A) ∧t (●[p] B)) := by
+  funext t
+  apply propext
+  exact ⟨id, id⟩
+
+theorem postpone_and_dist (p : ℝ) (A B : Tprop) : (○[p] (A ∧t B)) = ((○[p] A) ∧t (○[p] B)) := by
+  funext t
+  apply propext
+  exact ⟨id, id⟩
+
+theorem postpone_imp_dist (p : ℝ) (A B : Tprop) : (○[p] (A →t B)) = ((○[p] A) →t (○[p] B)) := by
   funext t
   apply propext
   exact ⟨id, id⟩
@@ -134,7 +195,7 @@ lemma and4_assoc (A B C D : Tprop) : ((A ∧t B) ∧t C ∧t D) = (A ∧t B ∧t
   · intro ⟨a, b, c, d⟩
     exact ⟨⟨a, b⟩, c, d⟩
 
-lemma delay_prev_comm (p q : ℝ) (A : Tprop) : (○[p] □[q] A) = (□[q] ○[p] A) := by
+lemma delay_prev_comm (p q : ℝ) (A : Tprop) : (●[p] ■[q] A) = (■[q] ●[p] A) := by
   funext t
   apply propext
   constructor; all_goals
@@ -144,8 +205,18 @@ lemma delay_prev_comm (p q : ℝ) (A : Tprop) : (○[p] □[q] A) = (□[q] ○[
     ring_nf at h ⊢
     exact h
 
+lemma postpone_next_comm (p q : ℝ) (A : Tprop) : (○[p] □[q] A) = (□[q] ○[p] A) := by
+  funext t
+  apply propext
+  constructor; all_goals
+    intro h u hu
+    specialize h u hu
+    simp_all only [Postpone]
+    ring_nf at h ⊢
+    exact h
+
 lemma shrink_interval_right (p : ℝ) (q : ℝ≥0) (r : ℝ) (A : Tprop) :
-    ⊧ (□[p + q] ○[r] A) →t (□[p] ○[q + r] A) := by
+    ⊧ (■[p + q] ●[r] A) →t (■[p] ●[q + r] A) := by
   intro t h u hu
   specialize h (u + q) (by grind [zero_le_coe])
   simp_all only [Delay]
@@ -153,7 +224,7 @@ lemma shrink_interval_right (p : ℝ) (q : ℝ≥0) (r : ℝ) (A : Tprop) :
   exact h
 
 lemma shrink_interval_right' (p : ℝ) (q : ℝ≥0) (A : Tprop) :
-    ⊧ (□[p + q] A) →t (□[p] ○[q] A) := by
+    ⊧ (■[p + q] A) →t (■[p] ●[q] A) := by
   intro t h u hu
   specialize h (u + q) (by grind [zero_le_coe])
   simp_all only [Delay]
@@ -161,7 +232,7 @@ lemma shrink_interval_right' (p : ℝ) (q : ℝ≥0) (A : Tprop) :
   exact h
 
 lemma shrink_interval_left (p : ℝ) (q : ℝ≥0) (A : Tprop) :
-    ⊧ (□[p + q] A →t (□[p] A)) := by
+    ⊧ (■[p + q] A →t (■[p] A)) := by
   intro t h u hu
   specialize h u (by grind [zero_le_coe])
   exact h
@@ -173,7 +244,7 @@ for a segment of time of length `q`, and also
 for a segment of length `p` shifted `q` into the past.
 -/
 theorem peel (p q : ℝ≥0) (A : Tprop) :
-   □[p+q] A = (□[p] ○[q] A ∧t □[q] A) := by
+   ■[p+q] A = (■[p] ●[q] A ∧t ■[q] A) := by
   funext t
   apply propext
   constructor
@@ -198,7 +269,7 @@ theorem peel (p q : ℝ≥0) (A : Tprop) :
 
 theorem latch_stable1a (p q : ℝ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) :
-    ⊧ (□[p]○[q] (qpos high ∧t qbar low ∧t s high ∧t r high) →t (qpos high ∧t qbar low)) := by
+    ⊧ (■[p]●[q] (qpos high ∧t qbar low ∧t s high ∧t r high) →t (qpos high ∧t qbar low)) := by
   intro t h
   constructor
   · apply ℓ.nand_qpos.low1
@@ -212,7 +283,7 @@ theorem latch_stable1a (p q : ℝ) (s r qpos qbar : Location)
 
 theorem latch_stable1b (p q : ℝ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) :
-    ⊧ (□[p]○[q] (qpos low ∧t qbar high ∧t s high ∧t r high) →t (qpos low ∧t qbar high)) := by
+    ⊧ (■[p]●[q] (qpos low ∧t qbar high ∧t s high ∧t r high) →t (qpos low ∧t qbar high)) := by
   intro t h
   constructor
   · apply ℓ.nand_qpos.high01
@@ -226,8 +297,8 @@ theorem latch_stable1b (p q : ℝ) (s r qpos qbar : Location)
 
 theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
-    ⊧ (□[p + q]○[q] (qpos sig ∧t qbar (neg sig))) ∧t (□[p + q]○[q] (s high ∧t r high))
-        →t □[q] (qpos sig ∧t qbar (neg sig)) := by
+    ⊧ (■[p + q]●[q] (qpos sig ∧t qbar (neg sig))) ∧t (■[p + q]●[q] (s high ∧t r high))
+        →t ■[q] (qpos sig ∧t qbar (neg sig)) := by
   rw [← prev_and_dist, ← delay_and_dist, add_comm, prev_concat, and4_assoc]
   refine prev_func q ?_
   exact match sig with
@@ -236,9 +307,9 @@ theorem latch_stable1 (p q : ℝ≥0) (s r qpos qbar : Location)
 
 theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
     (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
-    ⊧ (□[p + q]○[n * q] (qpos sig ∧t qbar (neg sig))) ∧t
-      (□[p + n * q]○[q] (s high ∧t r high)) →t
-       □[n * q] (qpos sig ∧t qbar (neg sig)) := by
+    ⊧ (■[p + q]●[n * q] (qpos sig ∧t qbar (neg sig))) ∧t
+      (■[p + n * q]●[q] (s high ∧t r high)) →t
+       ■[n * q] (qpos sig ∧t qbar (neg sig)) := by
   induction n with
   | zero =>
     simp only [CharP.cast_eq_zero, zero_mul, delay_zero, add_zero, prev_zero]
@@ -254,15 +325,15 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
     rw [hh]
     conv => arg 1; rhs; rw[nqq_pos, peel]
     let premise :=
-      □[p + q]○[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
-      □[p + (n * q + q)]○[q](s high ∧t r high)
+      ■[p + q]●[n * q + q](qpos sig ∧t qbar (neg sig)) ∧t
+      ■[p + (n * q + q)]●[q](s high ∧t r high)
 
-    have subg1 : ⊧ (premise →t □[n * q]○[q](qpos sig ∧t qbar (neg sig))) := by
-      have hn1 : ⊧ (premise →t □[p + q] ○[q] ○[n * q] (qpos sig ∧t qbar (neg sig))) := by
+    have subg1 : ⊧ (premise →t ■[n * q]●[q](qpos sig ∧t qbar (neg sig))) := by
+      have hn1 : ⊧ (premise →t ■[p + q] ●[q] ●[n * q] (qpos sig ∧t qbar (neg sig))) := by
         rw [nqq_pos, ← delay_concat, add_comm (q : ℝ)]
         intro t ⟨pr1, _⟩
         exact pr1
-      have hn2 : ⊧ (premise →t □[↑p + ↑n * ↑q]○[↑q]○[↑q](s high ∧t r high)) := by
+      have hn2 : ⊧ (premise →t ■[↑p + ↑n * ↑q]●[↑q]●[↑q](s high ∧t r high)) := by
         intro t ⟨_, pr2⟩
         ring_nf at pr2
         exact shrink_interval_right' _ q _ _ pr2
@@ -272,8 +343,8 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
       repeat rw [delay_prev_comm] at hn'
       exact hn' t ⟨hn1 t pr, hn2 t pr⟩
 
-    have subg2 : ⊧ (premise →t □[q] (qpos sig ∧t qbar (neg sig))) := by
-      have combine : ⊧ (premise →t □[(p + q) + (n * q)]○[q](qpos sig ∧t qbar (neg sig))) := by
+    have subg2 : ⊧ (premise →t ■[q] (qpos sig ∧t qbar (neg sig))) := by
+      have combine : ⊧ (premise →t ■[(p + q) + (n * q)]●[q](qpos sig ∧t qbar (neg sig))) := by
         have : (p : ℝ)  + (q : ℝ) + (n : ℝ) * (q : ℝ) = (p + q : ℝ≥0) + (n * q : ℝ≥0) := by rfl
         rw [this, peel, ← delay_concat]
         intro t pr
@@ -291,3 +362,54 @@ theorem latch_stable2 (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
 
     intro t h
     exact ⟨subg1 t h, subg2 t h⟩
+
+lemma prev_is_next (p : ℝ) (A : Tprop) : (■[p] A) = (●[p] □[p] A) := by
+  funext t
+  apply propext
+  constructor
+  all_goals
+  · intro ha u hu
+    specialize ha (p - u) (by grind)
+    ring_nf at ha
+    exact ha
+
+lemma prev_is_next' (p : ℝ) (A : Tprop) : (○[p] ■[p] A) = (□[p] A) := by
+  funext t
+  apply propext
+  constructor
+  all_goals
+  · intro ha u hu
+    specialize ha (p - u) (by grind)
+    ring_nf at ⊢ ha
+    exact ha
+
+lemma delay_is_neg_postpone (p : ℝ) (A : Tprop) : (●[p] A) = (○[-p] A) := by
+  funext t; apply propext
+  constructor; all_goals
+  · intro ha; exact ha
+
+lemma retro_to_forward (p q : ℝ) (A B : Tprop) : (⊧ ((■[p] ●[q] A) →t B)) =
+    (⊧ (□[p] A →t ○[p + q] B)) := by
+  rw [postpone_func_eq q, postpone_func_eq p, prev_is_next]
+  repeat rw [delay_is_neg_postpone]
+  repeat rw [postpone_next_comm]
+  repeat rw [← postpone_concat]
+  ring_nf
+  simp only [postpone_zero]
+
+theorem latch_forward (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
+     (ℓ : Latch p q s r qpos qbar) (sig : Signal) :
+     ⊧ (□[↑p + ↑q](qpos sig ∧t qbar (neg sig)) ∧t
+        □[↑p + ↑q * ↑n](s high ∧t r high) →t
+        ○[↑p + ↑q]□[↑q * ↑n](qpos sig ∧t qbar (neg sig))) := by
+  have h := latch_stable2 p q n s r qpos qbar ℓ sig
+  rw [postpone_func_eq (n * q), postpone_func_eq q, postpone_func_eq p] at h
+  repeat rw [postpone_and_dist] at h
+  rw [prev_is_next', ← postpone_concat, postpone_comm, prev_is_next',
+      postpone_next_comm, postpone_comm] at h
+  nth_rewrite 2 [ ← postpone_concat] at h
+  rw [prev_is_next', postpone_next_comm] at h
+  repeat rw [delay_is_neg_postpone] at h
+  repeat rw [ ← postpone_concat] at h
+  ring_nf at h
+  simp_all only [postpone_zero]

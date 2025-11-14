@@ -414,9 +414,14 @@ theorem latch_forward (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
   ring_nf at h
   simp_all only [postpone_zero]
 
+structure Nand' (p q : ℝ) (in0 in1 out : Location) where
+  low0 : ⊧ (□[p] (in0 low) →t ○[p + q] (out high))
+  low1 : ⊧ (□[p] (in1 low) →t ○[p + q] (out high))
+  high01 : ⊧ (□[p] (in0 high ∧t in1 high) →t ○[p + q] (out low))
+
 structure OutNand (p q : ℝ) (in0 in1 : Location) where
   out : Location
-  valid : Nand p q in0 in1 out
+  valid : Nand' p q in0 in1 out
 
 structure OutLatch (p q : ℝ) (s r : Location) where
   qpos : Location
@@ -431,10 +436,12 @@ theorem out_latch_forward (p q : ℝ≥0) (n : ℕ) (s r : Location)
     ⊧ (□[↑p + ↑q](ℓ.qpos sig ∧t ℓ.qbar (neg sig)) ∧t
        □[↑p + ↑q * ↑n](s high ∧t r high) →t
        ○[↑p + ↑q]□[↑q * ↑n](ℓ.qpos sig ∧t ℓ.qbar (neg sig))) := by
-  refine latch_forward p q n s r ℓ.qpos ℓ.qbar ?_ sig
-  constructor
-  · rw [ℓ.wire_qpos0]; exact ℓ.nand0.valid
-  · rw [ℓ.wire_qbar1]; exact ℓ.nand1.valid
+  sorry
+  ---- These were valid when I was using Nand in OutNand instead of Nand':
+  -- refine latch_forward p q n s r ℓ.qpos ℓ.qbar ?_ sig
+  -- constructor
+  -- · rw [ℓ.wire_qpos0]; exact ℓ.nand0.valid
+  -- · rw [ℓ.wire_qbar1]; exact ℓ.nand1.valid
 
 structure SreLatch (p q : ℝ) (s r clk : Location) where
   nand_s : OutNand p q s clk
@@ -446,3 +453,15 @@ def SreLatch.qpos {p q : ℝ} {s r clk : Location} (x : SreLatch p q s r clk) : 
 
 def SreLatch.qbar {p q : ℝ} {s r clk : Location} (x : SreLatch p q s r clk) : Location :=
   x.ℓ.qbar
+
+theorem sre_forward1 {p q : ℝ} {dd khd kid kld : ℝ} {s r clk : Location} (x : SreLatch p q s r clk) :
+    khd ≤ dd →
+    ⊧ (□[dd] (s high ∧t r low) →t
+       □[khd] (clk high) →t
+       □[kld] ○[khd + kid] (clk low) →t
+       (fun t => False)) := by
+  intro khd_le_dd t hdata hkh hkl
+
+  have : (○[p+q] x.nand_s.out low) t := by
+    sorry
+  sorry

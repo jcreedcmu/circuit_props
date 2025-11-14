@@ -413,3 +413,36 @@ theorem latch_forward (p q : ℝ≥0) (n : ℕ) (s r qpos qbar : Location)
   repeat rw [ ← postpone_concat] at h
   ring_nf at h
   simp_all only [postpone_zero]
+
+structure OutNand (p q : ℝ) (in0 in1 : Location) where
+  out : Location
+  valid : Nand p q in0 in1 out
+
+structure OutLatch (p q : ℝ) (s r : Location) where
+  qpos : Location
+  qbar : Location
+  nand0 : OutNand p q s qbar
+  nand1 : OutNand p q r qpos
+  wire_qpos0 : qpos = nand0.out
+  wire_qbar1 : qbar = nand1.out
+
+theorem out_latch_forward (p q : ℝ≥0) (n : ℕ) (s r : Location)
+    (ℓ : OutLatch p q s r) (sig : Signal) :
+    ⊧ (□[↑p + ↑q](ℓ.qpos sig ∧t ℓ.qbar (neg sig)) ∧t
+       □[↑p + ↑q * ↑n](s high ∧t r high) →t
+       ○[↑p + ↑q]□[↑q * ↑n](ℓ.qpos sig ∧t ℓ.qbar (neg sig))) := by
+  refine latch_forward p q n s r ℓ.qpos ℓ.qbar ?_ sig
+  constructor
+  · rw [ℓ.wire_qpos0]; exact ℓ.nand0.valid
+  · rw [ℓ.wire_qbar1]; exact ℓ.nand1.valid
+
+structure SreLatch (p q : ℝ) (s r clk : Location) where
+  nand_s : OutNand p q s clk
+  nand_r : OutNand p q r clk
+  ℓ : OutLatch p q nand_s.out nand_r.out
+
+def SreLatch.qpos {p q : ℝ} {s r clk : Location} (x : SreLatch p q s r clk) : Location :=
+  x.ℓ.qpos
+
+def SreLatch.qbar {p q : ℝ} {s r clk : Location} (x : SreLatch p q s r clk) : Location :=
+  x.ℓ.qbar
